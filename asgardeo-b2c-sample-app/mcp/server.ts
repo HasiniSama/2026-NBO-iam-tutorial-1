@@ -284,10 +284,13 @@ function createTravelMcpServer(authorization?: string, requestLogger: Logger = l
 
     server.tool(
         "create_booking",
-        "Create a booking for the authenticated user in the travel API.",
+        "Create a booking for the authenticated user. The itemId must be copied exactly from a search result -- call search_flights first if you do not have it.",
         {
             type: z.enum(["flight", "hotel"]).describe("Booking type."),
-            itemId: z.string().describe("Flight or hotel item ID to book."),
+            itemId: z.string().describe(
+                "The exact `id` value from a search_flights result, for example \"flight-chi-mia-02\". "
+                + "Copy it verbatim. Never construct an id from the airline, route, or date.",
+            ),
             travelers: z.number().int().min(1).max(9).optional().describe("Number of travelers."),
         },
         withAuthorization(
