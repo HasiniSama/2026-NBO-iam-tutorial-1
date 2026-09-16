@@ -54,6 +54,7 @@ type ApiDbModule = {
     listLocations(criteria: { category?: string | null }): Row[];
     createBookingRecord(input: Row): Row;
     findDuplicateBooking(input: { username: string; type: string; itemId: string }): Row | undefined;
+    findFlightById(id: string): Row | undefined;
     listBookedFlights(username: string): Row[];
     cancelBookedFlight(input: { bookingId: string; username: string; disableDealAlerts?: boolean }): Row | null;
     transferDealAlertConsentBooking(input: {
@@ -158,6 +159,38 @@ export async function createBooking(input: {
 
     if (!Number.isInteger(travelers) || travelers < 1 || travelers > 9) {
         throw new DataError(400, "travelers must be an integer between 1 and 9");
+    }
+
+    // A flight booking must reference a real flight. The bookings list INNER
+    // JOINs flights, so a booking naming a nonexistent flight is accepted, and
+    // then silently invisible to the user -- worse than an outright failure.
+    // Models do invent plausible ids ("star-airways-chi-mia-oct-10-18") instead
+    // of using the id search_flights returned, so reject that here.
+    if (type === "flight" && !db.findFlightById(itemId)) {
+        // Name the valid ids so the model can correct itself in one step rather
+        // than guessing again. An invented id usually still carries the route
+        // and airline, so match on those to narrow the list; otherwise fall back
+        // to every flight.
+        const wanted = itemId.toLowerCase();
+        const all = db.findFlights({ from: null, to: null, cabin: null });
+        const close = all.filter((flight) => {
+            const from = String(flight.from ?? "").toLowerCase().replace(/\s+/g, "-");
+            const to = String(flight.to ?? "").toLowerCase().replace(/\s+/g, "-");
+            const airline = String(flight.airline ?? "").toLowerCase().replace(/\s+/g, "-");
+
+            return (from && to && wanted.includes(from.slice(0, 3)) && wanted.includes(to.slice(0, 3)))
+                || (airline && wanted.includes(airline.split("-")[0]));
+        });
+        const candidates = (close.length > 0 ? close : all).slice(0, 10);
+        const listed = candidates
+            .map((flight) => `${flight.id} (${flight.airline}, ${flight.from} -> ${flight.to})`)
+            .join("; ");
+
+        throw new DataError(
+            404,
+            `No flight exists with id "${itemId}". Ids must be copied verbatim from `
+            + `search_flights, not constructed. Valid ids: ${listed || "none"}.`,
+        );
     }
 
     if (db.findDuplicateBooking({ username: owner.username, type, itemId })) {
