@@ -21,3 +21,10 @@ test-results
 *.sqlite
 __pycache__
 .venv
+
+# Local demo credentials restored by scripts/restore-envs.sh - never commit
+/env-backups/
+
+# Local setup helpers copied from the Drive bundle - not part of the tutorial repo.
+# Leading slash matters: unanchored `scripts/` would also swallow api/scripts/.
+/scripts/

@@ -51,7 +51,11 @@ async function requestJson(path, options = {}) {
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(body.error || "API request failed");
+    const requestError = new Error(body.error || "API request failed");
+
+    requestError.status = response.status;
+
+    throw requestError;
   }
 
   return body;
@@ -129,6 +133,63 @@ export async function getCDSProfile(profileId) {
     `/api/cds/profiles/${profileId}?application_identifier=*&includeApplicationData=true`,
     { method: "GET" }
   );
+}
+
+// Temporary (anonymous) CDS profiles can be removed server-side, which leaves the cached
+// profile ID in local storage pointing at a profile that no longer exists. Every call then
+// fails with a 404, so replace the stale ID with a fresh profile and retry once.
+function isProfileNotFoundError(error) {
+  return error?.status === 404;
+}
+
+async function replaceStaleCDSProfile() {
+  clearCDSCookies();
+
+  const profile = await ensureCDSProfile({});
+
+  return profile?.profile_id || profile?.id || null;
+}
+
+export async function getCDSProfileWithRecovery(profileId) {
+  try {
+    return { profile: await getCDSProfile(profileId), profileId };
+  } catch (error) {
+    if (!isProfileNotFoundError(error)) {
+      throw error;
+    }
+
+    const replacementProfileId = await replaceStaleCDSProfile();
+
+    if (!replacementProfileId) {
+      throw error;
+    }
+
+    return {
+      profile: await getCDSProfile(replacementProfileId),
+      profileId: replacementProfileId
+    };
+  }
+}
+
+export async function updateCDSProfileWithRecovery(profileId, profilePayload = {}) {
+  try {
+    return { profile: await updateCDSProfile(profileId, profilePayload), profileId };
+  } catch (error) {
+    if (!isProfileNotFoundError(error)) {
+      throw error;
+    }
+
+    const replacementProfileId = await replaceStaleCDSProfile();
+
+    if (!replacementProfileId) {
+      throw error;
+    }
+
+    return {
+      profile: await updateCDSProfile(replacementProfileId, profilePayload),
+      profileId: replacementProfileId
+    };
+  }
 }
 
 export function initializeCDSFromCookie() {

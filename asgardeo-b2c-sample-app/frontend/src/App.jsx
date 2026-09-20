@@ -293,13 +293,14 @@ function BookingDetailsRoute() {
   return <BookingDetailsPageWithAuth bookingId={bookingId} />;
 }
 
-function LandingRoute({ authReady, category, cdsProfileId, locations, onSearch }) {
+function LandingRoute({ authReady, category, cdsProfileId, locations, onProfileRecreated, onSearch }) {
   if (authReady) {
     return (
       <SignedInHomePage
         category={category}
         cdsProfileId={cdsProfileId}
         locations={locations}
+        onProfileRecreated={onProfileRecreated}
         onSearch={onSearch}
       />
     );
@@ -460,13 +461,14 @@ function PublicLocationsLoader({ onLocationsLoaded }) {
   );
 }
 
-function AppRoutes({ authReady, cdsProfileId, criteria, locations, onSearch }) {
+function AppRoutes({ authReady, cdsProfileId, criteria, locations, onProfileRecreated, onSearch }) {
   const flightLandingElement = (
     <LandingRoute
       authReady={authReady}
       category="flights"
       cdsProfileId={cdsProfileId}
       locations={locations}
+      onProfileRecreated={onProfileRecreated}
       onSearch={onSearch}
     />
   );
@@ -483,6 +485,7 @@ function AppRoutes({ authReady, cdsProfileId, criteria, locations, onSearch }) {
             category="hotels"
             cdsProfileId={cdsProfileId}
             locations={locations}
+            onProfileRecreated={onProfileRecreated}
             onSearch={onSearch}
           />
         }
@@ -495,6 +498,7 @@ function AppRoutes({ authReady, cdsProfileId, criteria, locations, onSearch }) {
             category="trips"
             cdsProfileId={cdsProfileId}
             locations={locations}
+            onProfileRecreated={onProfileRecreated}
             onSearch={onSearch}
           />
         }
@@ -507,6 +511,7 @@ function AppRoutes({ authReady, cdsProfileId, criteria, locations, onSearch }) {
               cdsProfileId={cdsProfileId}
               criteria={criteria}
               locations={locations}
+              onProfileRecreated={onProfileRecreated}
               onSearch={onSearch}
             />
           ) : (
@@ -514,6 +519,7 @@ function AppRoutes({ authReady, cdsProfileId, criteria, locations, onSearch }) {
               cdsProfileId={cdsProfileId}
               criteria={criteria}
               locations={locations}
+              onProfileRecreated={onProfileRecreated}
               onSearch={onSearch}
             />
           )
@@ -604,6 +610,7 @@ function App({ authReady }) {
         cdsProfileId={cdsProfileId}
         criteria={criteria}
         locations={locations}
+        onProfileRecreated={setCdsProfileId}
         onSearch={handleSearch}
       />
       <TravelAssistantWidget />

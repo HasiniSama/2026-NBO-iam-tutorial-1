@@ -16,7 +16,7 @@ import {
 import { apiQueryKeys, useApiAuth } from "../api-queries";
 import { getFlight } from "../api";
 import { SearchPanel } from "../components/SearchPanel";
-import { ASGARDEO_APPLICATION_ID, getCDSProfile } from "../cds-api";
+import { ASGARDEO_APPLICATION_ID, getCDSProfileWithRecovery } from "../cds-api";
 import { buildFlightDetailsPath } from "../utils/routes";
 
 function extractFavoriteFlightIds(profile) {
@@ -58,7 +58,7 @@ function LoadingFavorites() {
   );
 }
 
-function QuickBookingsSection({ cdsProfileId }) {
+function QuickBookingsSection({ cdsProfileId, onProfileRecreated }) {
   const navigate = useNavigate();
   const auth = useApiAuth();
   const [favoriteFlightIds, setFavoriteFlightIds] = useState([]);
@@ -81,8 +81,12 @@ function QuickBookingsSection({ cdsProfileId }) {
       setError("");
 
       try {
-        const profile = await getCDSProfile(cdsProfileId);
+        const { profile, profileId } = await getCDSProfileWithRecovery(cdsProfileId);
         const favoriteIds = extractFavoriteFlightIds(profile);
+
+        if (profileId !== cdsProfileId) {
+          onProfileRecreated?.(profileId);
+        }
 
         if (isCurrent) {
           setFavoriteFlightIds(favoriteIds);
@@ -104,7 +108,7 @@ function QuickBookingsSection({ cdsProfileId }) {
     return () => {
       isCurrent = false;
     };
-  }, [cdsProfileId]);
+  }, [cdsProfileId, onProfileRecreated]);
 
   const favoriteFlightQueries = useQueries({
     queries: favoriteFlightIds.map((id) => ({
@@ -514,7 +518,13 @@ export function HomePage({
   );
 }
 
-export function SignedInHomePage({ category = "flights", cdsProfileId, locations, onSearch }) {
+export function SignedInHomePage({
+  category = "flights",
+  cdsProfileId,
+  locations,
+  onProfileRecreated,
+  onSearch
+}) {
   const { isSignedIn, user } = useAsgardeo();
 
   if (!isSignedIn) {
@@ -532,7 +542,11 @@ export function SignedInHomePage({ category = "flights", cdsProfileId, locations
       hideHeroSupport
       category={category}
       heroHeading={`Welcome back, ${greetingName}.`}
-      quickBookings={category === "flights" ? <QuickBookingsSection cdsProfileId={cdsProfileId} /> : null}
+      quickBookings={
+        category === "flights" ? (
+          <QuickBookingsSection cdsProfileId={cdsProfileId} onProfileRecreated={onProfileRecreated} />
+        ) : null
+      }
       locations={locations}
       onSearch={onSearch}
     />

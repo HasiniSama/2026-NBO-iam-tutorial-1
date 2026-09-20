@@ -8,7 +8,11 @@ import {
   useSearchResultsQuery
 } from "../api-queries";
 import { SearchPanel } from "../components/SearchPanel";
-import { ASGARDEO_APPLICATION_ID, getCDSProfile, updateCDSProfile } from "../cds-api";
+import {
+  ASGARDEO_APPLICATION_ID,
+  getCDSProfileWithRecovery,
+  updateCDSProfileWithRecovery
+} from "../cds-api";
 import { formatPrice, isActiveBooking, isSameFlight } from "../utils/bookings";
 import { buildFlightDetailsPath } from "../utils/routes";
 
@@ -140,6 +144,7 @@ export function ResultsPage({
   criteria,
   includeBookings = false,
   locations,
+  onProfileRecreated,
   onSearch
 }) {
   const navigate = useNavigate();
@@ -169,8 +174,12 @@ export function ResultsPage({
       }
 
       try {
-        const profile = await getCDSProfile(cdsProfileId);
+        const { profile, profileId } = await getCDSProfileWithRecovery(cdsProfileId);
         const favoriteIds = extractFavoriteFlightIds(profile);
+
+        if (profileId !== cdsProfileId) {
+          onProfileRecreated?.(profileId);
+        }
 
         if (isCurrent) {
           setFavorites(new Set(favoriteIds.map((id) => `${id}`)));
@@ -192,7 +201,7 @@ export function ResultsPage({
     return () => {
       isCurrent = false;
     };
-  }, [cdsProfileId, criteria.category]);
+  }, [cdsProfileId, criteria.category, onProfileRecreated]);
 
   useEffect(() => {
     setError("");
@@ -257,13 +266,17 @@ export function ResultsPage({
       try {
         const favoritedFlights = Array.from(newFavorites).map((id) => `${id}`);
 
-        await updateCDSProfile(cdsProfileId, {
+        const { profileId } = await updateCDSProfileWithRecovery(cdsProfileId, {
           application_data: {
             [ASGARDEO_APPLICATION_ID]: {
               fav_flights: favoritedFlights
             }
           }
         });
+
+        if (profileId !== cdsProfileId) {
+          onProfileRecreated?.(profileId);
+        }
       } catch (updateError) {
         console.warn("Failed to update CDS profile:", updateError.message);
       }
