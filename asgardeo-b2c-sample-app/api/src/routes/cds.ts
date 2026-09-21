@@ -72,7 +72,12 @@ export function registerCDSRoutes(app) {
 
     if (!cdsResponse.ok) {
       return sendJson(response, cdsResponse.status, {
-        error: cdsData.error_description || cdsData.error || "Failed to fetch CDS profile"
+        error:
+          cdsData.message ||
+          cdsData.description ||
+          cdsData.error_description ||
+          cdsData.error ||
+          "Failed to fetch CDS profile"
       });
     }
 
@@ -94,7 +99,12 @@ export function registerCDSRoutes(app) {
 
     if (!cdsResponse.ok) {
       return sendJson(response, cdsResponse.status, {
-        error: cdsData.error_description || cdsData.error || "Failed to update CDS profile"
+        error:
+          cdsData.message ||
+          cdsData.description ||
+          cdsData.error_description ||
+          cdsData.error ||
+          "Failed to update CDS profile"
       });
     }
 
