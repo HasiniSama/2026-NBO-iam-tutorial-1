@@ -66,11 +66,15 @@ npm run seed # seed the database
 npm run dev
 ```
 
-`npm run dev` watches source files and restarts the API automatically. To rebuild the local SQLite database from scratch, run:
+`npm run dev` watches source files and restarts the API automatically. To rebuild the local SQLite database from scratch, stop the API first, then run:
 
 ```bash
-npm run seed --force
+npm run seed -- --force
 ```
+
+The `--` matters: without it npm keeps `--force` for itself and the flag never reaches the seed script. `--force` deletes `wayfinder.sqlite` and its `-wal`/`-shm` files before reseeding, so a running API would keep writing to the deleted file until you restart it.
+
+Reseeding drops every table, including `bookings` and `deal_alert_consents`. Use it to get back to the default catalogue after rows have been edited or inserted by hand.
 
 The API runs on:
 
