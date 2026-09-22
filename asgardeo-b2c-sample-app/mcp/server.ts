@@ -78,7 +78,9 @@ function loadEnvFile(filePath: string) {
 
 loadEnvFile(resolve(__dirname, ".env"));
 
-const port = Number(process.env.PORT || process.env.MCP_PORT || 8000);
+// MCP_PORT wins over the generic PORT: api/.env sets PORT=8787, and a shell that has
+// sourced it would otherwise bind this server on top of the API.
+const port = Number(process.env.MCP_PORT || process.env.PORT || 8000);
 const host = process.env.HOST || "localhost";
 const requireAuth = process.env.MCP_REQUIRE_AUTH === "true";
 

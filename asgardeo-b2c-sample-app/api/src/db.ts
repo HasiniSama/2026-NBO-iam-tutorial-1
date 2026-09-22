@@ -8,7 +8,54 @@ const dbPath = resolve(__dirname, "..", "wayfinder.sqlite");
 
 let db;
 
+/**
+ * A booking named an item that is not in the catalogue. Agents invent
+ * plausible-looking IDs, so this is a routine rejection rather than a fault:
+ * callers map it to 400 so the model can retry with an ID from a search.
+ */
+export class UnknownBookingItemError extends Error {
+  statusCode = 400;
+
+  constructor(type, itemId) {
+    super(`Unknown ${type} ID: ${itemId}. Use an ID returned by a search.`);
+    this.name = "UnknownBookingItemError";
+  }
+}
+
+/**
+ * Tables `npm run seed` builds from schema.sql. `ensureSchema` cannot create
+ * them itself -- it has no catalogue data to put in them, and an empty flights
+ * table would leave every search silently returning nothing.
+ */
+const CATALOGUE_TABLES = ["flights", "hotels", "trips"];
+
+/**
+ * The bookings_reject_unknown_item_* triggers read the catalogue tables.
+ * SQLite accepts a trigger that names a missing table and only fails when the
+ * trigger fires, so an unseeded database would reach the first booking and
+ * report `no such table: main.flights`. Check up front instead, so the error
+ * names the fix at startup.
+ */
+function assertCatalogueTables(database) {
+  const present = new Set(
+    database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .all()
+      .map((row) => row.name)
+  );
+  const missing = CATALOGUE_TABLES.filter((table) => !present.has(table));
+
+  if (missing.length > 0) {
+    throw new Error(
+      `SQLite database is missing the ${missing.join(", ")} table(s). ` +
+      "Run `npm run seed` from the api directory."
+    );
+  }
+}
+
 function ensureSchema(database) {
+  assertCatalogueTables(database);
+
   database.exec(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
@@ -36,6 +83,37 @@ function ensureSchema(database) {
       UNIQUE (booking_id, username),
       FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
     );
+
+    -- bookings.item_id is polymorphic, so it cannot take a foreign key. These
+    -- triggers are the equivalent guard: a booking may only point at a catalogue
+    -- row that exists, whichever writer inserts it.
+    CREATE TRIGGER IF NOT EXISTS bookings_reject_unknown_item_insert
+    BEFORE INSERT ON bookings
+    FOR EACH ROW
+    WHEN NOT EXISTS (
+      SELECT 1 FROM flights WHERE NEW.type = 'flight' AND flights.id = NEW.item_id
+      UNION ALL
+      SELECT 1 FROM hotels WHERE NEW.type = 'hotel' AND hotels.id = NEW.item_id
+      UNION ALL
+      SELECT 1 FROM trips WHERE NEW.type = 'trip' AND trips.id = NEW.item_id
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'bookings.item_id does not match a known flight, hotel or trip');
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS bookings_reject_unknown_item_update
+    BEFORE UPDATE OF type, item_id ON bookings
+    FOR EACH ROW
+    WHEN NOT EXISTS (
+      SELECT 1 FROM flights WHERE NEW.type = 'flight' AND flights.id = NEW.item_id
+      UNION ALL
+      SELECT 1 FROM hotels WHERE NEW.type = 'hotel' AND hotels.id = NEW.item_id
+      UNION ALL
+      SELECT 1 FROM trips WHERE NEW.type = 'trip' AND trips.id = NEW.item_id
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'bookings.item_id does not match a known flight, hotel or trip');
+    END;
 
     CREATE TRIGGER IF NOT EXISTS delete_deal_alert_consents_after_booking_delete
     AFTER DELETE ON bookings
@@ -278,6 +356,40 @@ export function findFlightById(id) {
   return row ? mapFlight(row) : null;
 }
 
+export function findHotelById(id) {
+  const row = getDatabase()
+    .prepare("SELECT * FROM hotels WHERE id = @id")
+    .get({ id });
+
+  return row ? mapHotel(row) : null;
+}
+
+function findTripById(id) {
+  return getDatabase()
+    .prepare("SELECT * FROM trips WHERE id = @id")
+    .get({ id }) || null;
+}
+
+/**
+ * Resolve the catalogue row a booking points at, or reject the booking.
+ * `bookings.item_id` is polymorphic, so the lookup is per type; the
+ * `bookings_reject_unknown_item_*` triggers enforce the same rule in SQL for
+ * any writer that does not come through here.
+ */
+function findBookingItem(type, itemId) {
+  const item =
+    type === "flight" ? findFlightById(itemId) :
+    type === "hotel" ? findHotelById(itemId) :
+    type === "trip" ? findTripById(itemId) :
+    null;
+
+  if (!item) {
+    throw new UnknownBookingItemError(type, itemId);
+  }
+
+  return item;
+}
+
 export function createFlightRecord({
   id,
   from,
@@ -453,7 +565,8 @@ export function createBookingRecord({
   createdAt
 }) {
   const username = user.username || user.email || user.id;
-  const item = type === "flight" ? findFlightById(itemId) : null;
+  const item = findBookingItem(type, itemId);
+  const bookingPrice = type === "flight" ? item.price : null;
 
   getDatabase()
     .prepare(
@@ -491,7 +604,7 @@ export function createBookingRecord({
       type,
       itemId,
       travelers,
-      bookingPrice: item?.price ?? null,
+      bookingPrice,
       status,
       createdAt
     });
@@ -504,7 +617,7 @@ export function createBookingRecord({
     type,
     itemId,
     travelers,
-    bookingPrice: item?.price ?? null,
+    bookingPrice,
     status,
     createdAt
   };

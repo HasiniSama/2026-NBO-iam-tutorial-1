@@ -6,6 +6,7 @@ import {
   findDuplicateBooking,
   getBookedFlightById,
   listBookedFlights,
+  UnknownBookingItemError,
   updateBookedFlightPrice
 } from "../db.js";
 import {
@@ -86,16 +87,29 @@ async function handleBooking(request) {
     };
   }
 
-  const booking = createBookingRecord({
-    id: `booking-${randomUUID()}`,
-    bookingReference: generateBookingReference(),
-    user,
-    type: itemType,
-    itemId,
-    travelers,
-    status: "confirmed",
-    createdAt: new Date().toISOString()
-  });
+  let booking;
+
+  try {
+    booking = createBookingRecord({
+      id: `booking-${randomUUID()}`,
+      bookingReference: generateBookingReference(),
+      user,
+      type: itemType,
+      itemId,
+      travelers,
+      status: "confirmed",
+      createdAt: new Date().toISOString()
+    });
+  } catch (error) {
+    if (error instanceof UnknownBookingItemError) {
+      return {
+        statusCode: 400,
+        body: { error: error.message }
+      };
+    }
+
+    throw error;
+  }
 
   return {
     statusCode: 201,

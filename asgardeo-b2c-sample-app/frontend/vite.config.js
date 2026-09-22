@@ -14,6 +14,9 @@ export default defineConfig({
       : {}
   },
   server: {
-    port: 5173
+    port: 5173,
+    // Fail loudly instead of drifting to 5174: only http://localhost:5173 is
+    // registered as an authorized redirect URL / allowed origin in Asgardeo.
+    strictPort: true
   }
 });

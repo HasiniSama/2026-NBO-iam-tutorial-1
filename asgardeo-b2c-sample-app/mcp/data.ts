@@ -143,6 +143,14 @@ export class DataError extends Error {
 }
 
 /**
+ * The API's db module is imported at runtime, so its error class is not in
+ * scope here to compare against -- the shape is matched instead.
+ */
+function isUnknownBookingItem(error: unknown): boolean {
+    return error instanceof Error && error.name === "UnknownBookingItemError";
+}
+
+/**
  * Create a booking owned by `owner`, which the caller must derive from verified
  * claims. There is deliberately no way to name a different owner: the previous
  * REST hop resolved ownership from request headers, which made the owner
@@ -197,16 +205,27 @@ export async function createBooking(input: {
         throw new DataError(409, "This booking already exists.");
     }
 
-    return db.createBookingRecord({
-        id: `booking-${randomUUID()}`,
-        bookingReference: generateBookingReference(),
-        user: owner,
-        type,
-        itemId,
-        travelers,
-        status: "confirmed",
-        createdAt: new Date().toISOString(),
-    });
+    try {
+        return db.createBookingRecord({
+            id: `booking-${randomUUID()}`,
+            bookingReference: generateBookingReference(),
+            user: owner,
+            type,
+            itemId,
+            travelers,
+            status: "confirmed",
+            createdAt: new Date().toISOString(),
+        });
+    } catch (error) {
+        // An itemId the model invented rather than took from a search. Surfaced
+        // as a tool error so it can retry with a real one; the message names the
+        // bad ID, and no row is written.
+        if (isUnknownBookingItem(error)) {
+            throw new DataError(400, (error as Error).message);
+        }
+
+        throw error;
+    }
 }
 
 export async function listFlightBookings(username: string) {

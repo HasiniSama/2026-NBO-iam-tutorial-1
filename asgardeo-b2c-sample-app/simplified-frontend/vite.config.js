@@ -12,5 +12,11 @@ export default defineConfig({
           "@asgardeo/react": fileURLToPath(new URL("../e2e/support/asgardeo-react-mock.js", import.meta.url))
         }
       : {}
+  },
+  server: {
+    port: 5173,
+    // Fail loudly instead of drifting to 5174: only http://localhost:5173 is
+    // registered as an authorized redirect URL / allowed origin in Asgardeo.
+    strictPort: true
   }
 });
