@@ -176,11 +176,38 @@ function useViewportAwareMenuPlacement(isOpen) {
   return { anchorRef, menuRef, placement };
 }
 
+const DEFAULT_START_DATE = new Date(2026, 10, 5);
+const DEFAULT_END_DATE = new Date(2026, 10, 14);
+const CALENDAR_YEAR = 2026;
+
+function parseShortDate(value) {
+  const date = new Date(`${value.trim()} ${CALENDAR_YEAR}`);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Turns a "Nov 5 - Nov 14" search param back into dates so a search keeps its range.
+function parseDateRange(value) {
+  const [start, end] = (value || "").split(" - ");
+  const startDate = start ? parseShortDate(start) : null;
+  const endDate = end ? parseShortDate(end) : null;
+
+  return startDate && endDate && startDate <= endDate
+    ? { startDate, endDate }
+    : { startDate: DEFAULT_START_DATE, endDate: DEFAULT_END_DATE };
+}
+
 function DateField({ defaultValue, isOpen, onOpen, onClose }) {
   const [visibleMonth, setVisibleMonth] = useState(new Date(2026, 9, 1));
-  const [startDate, setStartDate] = useState(new Date(2026, 10, 10));
-  const [endDate, setEndDate] = useState(new Date(2026, 10, 30));
-  const displayValue = formatDateRange(startDate, endDate) || defaultValue;
+  const [startDate, setStartDate] = useState(() => parseDateRange(defaultValue).startDate);
+  const [endDate, setEndDate] = useState(() => parseDateRange(defaultValue).endDate);
+  const displayValue = formatDateRange(startDate, endDate);
+
+  useEffect(() => {
+    const range = parseDateRange(defaultValue);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+  }, [defaultValue]);
   const { anchorRef, menuRef, placement } = useViewportAwareMenuPlacement(isOpen);
 
   function selectDate(date) {
