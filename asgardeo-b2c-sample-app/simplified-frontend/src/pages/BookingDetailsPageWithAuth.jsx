@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Ban, ChevronLeft, Plane, ShieldCheck } from "lucide-react";
+import { Ban, Bot, ChevronLeft, Plane, ShieldCheck } from "lucide-react";
 import { useBookedFlightsQuery, useCancelBookingMutation } from "../api-queries";
 import { formatPrice, getBookingReference } from "../utils/bookings";
 
@@ -172,6 +172,23 @@ export function BookingDetailsPageWithAuth({ bookingId }) {
                 <div>
                   <dt>Status</dt>
                   <dd>{booking.status}</dd>
+                </div>
+                <div>
+                  <dt>Booked by</dt>
+                  <dd>
+                    {booking.bookedByAgentId ? (
+                      <span className="booking-agent-attribution">
+                        <span className="booking-agent-badge">
+                          <Bot size={13} aria-hidden="true" />
+                          {booking.bookedByAgentName || "AI agent"}
+                        </span>
+                        <small>on your behalf</small>
+                        <small>{booking.bookedByAgentId}</small>
+                      </span>
+                    ) : (
+                      "You"
+                    )}
+                  </dd>
                 </div>
               </dl>
             </section>

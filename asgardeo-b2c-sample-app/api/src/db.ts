@@ -46,8 +46,10 @@ function assertCatalogueTables(database) {
   const missing = CATALOGUE_TABLES.filter((table) => !present.has(table));
 
   if (missing.length > 0) {
+    const label = missing.length === 1 ? "table" : "tables";
+
     throw new Error(
-      `SQLite database is missing the ${missing.join(", ")} table(s). ` +
+      `SQLite database is missing the ${missing.join(", ")} ${label}. ` +
       "Run `npm run seed` from the api directory."
     );
   }
@@ -67,7 +69,9 @@ function ensureSchema(database) {
       travelers INTEGER NOT NULL,
       booking_price REAL,
       status TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      booked_by_agent_id TEXT,
+      booked_by_agent_name TEXT
     );
 
     CREATE TABLE IF NOT EXISTS deal_alert_consents (
@@ -124,9 +128,11 @@ function ensureSchema(database) {
     END;
   `);
 
-  const bookingColumns = database.prepare("PRAGMA table_info(bookings)").all();
+  const bookingColumns = database.prepare("PRAGMA table_info(bookings)").all() as { name: string }[];
   const hasBookingReference = bookingColumns.some((column) => column.name === "booking_reference");
   const hasBookingPrice = bookingColumns.some((column) => column.name === "booking_price");
+  const hasBookedByAgentId = bookingColumns.some((column) => column.name === "booked_by_agent_id");
+  const hasBookedByAgentName = bookingColumns.some((column) => column.name === "booked_by_agent_name");
 
   if (!hasBookingReference) {
     database.exec("ALTER TABLE bookings ADD COLUMN booking_reference TEXT;");
@@ -134,6 +140,14 @@ function ensureSchema(database) {
 
   if (!hasBookingPrice) {
     database.exec("ALTER TABLE bookings ADD COLUMN booking_price REAL;");
+  }
+
+  if (!hasBookedByAgentId) {
+    database.exec("ALTER TABLE bookings ADD COLUMN booked_by_agent_id TEXT;");
+  }
+
+  if (!hasBookedByAgentName) {
+    database.exec("ALTER TABLE bookings ADD COLUMN booked_by_agent_name TEXT;");
   }
 
   const dealAlertColumns = database.prepare("PRAGMA table_info(deal_alert_consents)").all();
@@ -562,7 +576,10 @@ export function createBookingRecord({
   itemId,
   travelers,
   status,
-  createdAt
+  createdAt,
+  // Supplied only by the MCP write path, from the verified delegated token.
+  bookedByAgentId = null,
+  bookedByAgentName = null
 }) {
   const username = user.username || user.email || user.id;
   const item = findBookingItem(type, itemId);
@@ -581,7 +598,9 @@ export function createBookingRecord({
           travelers,
           booking_price,
           status,
-          created_at
+          created_at,
+          booked_by_agent_id,
+          booked_by_agent_name
         ) VALUES (
           @id,
           @bookingReference,
@@ -592,7 +611,9 @@ export function createBookingRecord({
           @travelers,
           @bookingPrice,
           @status,
-          @createdAt
+          @createdAt,
+          @bookedByAgentId,
+          @bookedByAgentName
         )
       `
     )
@@ -606,7 +627,9 @@ export function createBookingRecord({
       travelers,
       bookingPrice,
       status,
-      createdAt
+      createdAt,
+      bookedByAgentId,
+      bookedByAgentName
     });
 
   return {
@@ -619,7 +642,9 @@ export function createBookingRecord({
     travelers,
     bookingPrice,
     status,
-    createdAt
+    createdAt,
+    bookedByAgentId,
+    bookedByAgentName
   };
 }
 
@@ -673,6 +698,8 @@ export function listBookedFlights(username) {
           bookings.booking_price,
           bookings.status,
           bookings.created_at,
+          bookings.booked_by_agent_id,
+          bookings.booked_by_agent_name,
           flights.*
         FROM bookings
         INNER JOIN flights ON bookings.item_id = flights.id
@@ -690,6 +717,8 @@ export function listBookedFlights(username) {
     travelers: row.travelers,
     status: row.status,
     createdAt: row.created_at,
+    bookedByAgentId: row.booked_by_agent_id,
+    bookedByAgentName: row.booked_by_agent_name,
     flight: {
       ...mapFlight(row),
       price: row.booking_price ?? row.price
@@ -709,6 +738,8 @@ export function getBookedFlightById(bookingId) {
           bookings.booking_price,
           bookings.status,
           bookings.created_at,
+          bookings.booked_by_agent_id,
+          bookings.booked_by_agent_name,
           flights.*
         FROM bookings
         INNER JOIN flights ON bookings.item_id = flights.id
@@ -730,6 +761,8 @@ export function getBookedFlightById(bookingId) {
     travelers: row.travelers,
     status: row.status,
     createdAt: row.created_at,
+    bookedByAgentId: row.booked_by_agent_id,
+    bookedByAgentName: row.booked_by_agent_name,
     flight: {
       ...mapFlight(row),
       price: row.booking_price ?? row.price

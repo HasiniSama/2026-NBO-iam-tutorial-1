@@ -154,16 +154,19 @@ function isUnknownBookingItem(error: unknown): boolean {
  * Create a booking owned by `owner`, which the caller must derive from verified
  * claims. There is deliberately no way to name a different owner: the previous
  * REST hop resolved ownership from request headers, which made the owner
- * effectively caller-controlled.
+ * effectively caller-controlled. `bookedByAgentId` follows the same rule: it
+ * comes from the verified token's `act` claim, never from a tool argument.
  */
 export async function createBooking(input: {
     owner: { id: string; username: string; email?: string };
     type: "flight" | "hotel";
     itemId: string;
     travelers: number;
+    bookedByAgentId?: string | null;
+    bookedByAgentName?: string | null;
 }) {
     const db = await getApiDb();
-    const { owner, type, itemId, travelers } = input;
+    const { owner, type, itemId, travelers, bookedByAgentId, bookedByAgentName } = input;
 
     if (!Number.isInteger(travelers) || travelers < 1 || travelers > 9) {
         throw new DataError(400, "travelers must be an integer between 1 and 9");
@@ -215,6 +218,8 @@ export async function createBooking(input: {
             travelers,
             status: "confirmed",
             createdAt: new Date().toISOString(),
+            bookedByAgentId: bookedByAgentId ?? null,
+            bookedByAgentName: bookedByAgentName ?? null,
         });
     } catch (error) {
         // An itemId the model invented rather than took from a search. Surfaced

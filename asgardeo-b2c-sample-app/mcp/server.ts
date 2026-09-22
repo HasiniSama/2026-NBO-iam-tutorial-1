@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { resolveAgentName } from "./agents.js";
 import {
     AuthError,
     requireScope,
@@ -239,6 +240,16 @@ function createTravelMcpServer(authorization?: string, requestLogger: Logger = l
         };
     }
 
+    /** The agent acting for the user, or null unless the token is delegated. */
+    function getBookingAgent(claims: VerifiedClaims) {
+        const agentId = claims.delegated ? claims.actor ?? null : null;
+
+        return {
+            bookedByAgentId: agentId,
+            bookedByAgentName: resolveAgentName(agentId),
+        };
+    }
+
     // Public catalogue reads. A valid token is still required when
     // MCP_REQUIRE_AUTH=true, but no scope beyond that.
     server.tool(
@@ -298,17 +309,29 @@ function createTravelMcpServer(authorization?: string, requestLogger: Logger = l
         withAuthorization(
             getClaims,
             scopesForTool("create_booking"),
-            async ({ type, itemId, travelers }, claims) => logToolOperation(
-                requestLogger,
-                "create_booking",
-                { type, itemId, travelers, subject: claims.subject },
-                async () => toToolContent(await createBooking({
-                    owner: getOwner(claims),
-                    type,
-                    itemId,
-                    travelers: travelers ?? 1,
-                }) as JsonValue),
-            ),
+            async ({ type, itemId, travelers }, claims) => {
+                const agent = getBookingAgent(claims);
+
+                return logToolOperation(
+                    requestLogger,
+                    "create_booking",
+                    {
+                        type,
+                        itemId,
+                        travelers,
+                        subject: claims.subject,
+                        bookedByAgentId: agent.bookedByAgentId,
+                        bookedByAgentName: agent.bookedByAgentName,
+                    },
+                    async () => toToolContent(await createBooking({
+                        owner: getOwner(claims),
+                        type,
+                        itemId,
+                        travelers: travelers ?? 1,
+                        ...agent,
+                    }) as JsonValue),
+                );
+            },
         ),
     );
 

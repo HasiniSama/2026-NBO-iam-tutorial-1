@@ -1168,6 +1168,35 @@ h1 {
   background: #6b7280;
 }
 
+/* Agent-made booking. Violet, so it does not read as a .booking-status state. */
+.booking-agent-badge {
+  display: inline-flex;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 9px;
+  align-items: center;
+  color: #5b21b6;
+  background: #f3e8ff;
+  border: 1px solid #ddd0fb;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Right-aligned stack for the "Booked by" row. */
+.booking-agent-attribution {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.booking-agent-attribution small {
+  color: #5b6574;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
 .booking-price {
   justify-items: end;
 }

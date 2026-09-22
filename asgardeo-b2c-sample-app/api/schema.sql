@@ -53,7 +53,10 @@ CREATE TABLE bookings (
   travelers INTEGER NOT NULL,
   booking_price REAL,
   status TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- NULL when the user booked it themselves; set only on the MCP write path.
+  booked_by_agent_id TEXT,
+  booked_by_agent_name TEXT
 );
 
 CREATE TABLE deal_alert_consents (

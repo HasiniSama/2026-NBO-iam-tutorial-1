@@ -1,5 +1,6 @@
 import { useAsgardeo } from "@asgardeo/react";
 import { Link } from "react-router-dom";
+import { Bot } from "lucide-react";
 import { useApiAuth, useBookedFlightsQuery } from "../api-queries";
 import { createSignInConfigWithCDSTracker } from "../cds-api";
 import { formatPrice, getBookingReference } from "../utils/bookings";
@@ -82,6 +83,12 @@ export function BookingsPageWithAuth() {
                 </span>
                 <strong>{booking.flight.from} to {booking.flight.to}</strong>
                 <small>Booked {new Date(booking.createdAt).toLocaleDateString()}</small>
+                {booking.bookedByAgentId && (
+                  <span className="booking-agent-badge" title={booking.bookedByAgentId}>
+                    <Bot size={13} aria-hidden="true" />
+                    {booking.bookedByAgentName || `${booking.bookedByAgentId.slice(0, 8)}…`}
+                  </span>
+                )}
               </div>
               <div className="booking-cell">
                 <strong>{getBookingReference(booking)}</strong>

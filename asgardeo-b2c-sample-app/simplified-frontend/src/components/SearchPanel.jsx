@@ -177,9 +177,9 @@ function useViewportAwareMenuPlacement(isOpen) {
 }
 
 function DateField({ defaultValue, isOpen, onOpen, onClose }) {
-  const [visibleMonth, setVisibleMonth] = useState(new Date(2026, 4, 1));
-  const [startDate, setStartDate] = useState(new Date(2026, 5, 12));
-  const [endDate, setEndDate] = useState(new Date(2026, 5, 18));
+  const [visibleMonth, setVisibleMonth] = useState(new Date(2026, 9, 1));
+  const [startDate, setStartDate] = useState(new Date(2026, 10, 10));
+  const [endDate, setEndDate] = useState(new Date(2026, 10, 30));
   const displayValue = formatDateRange(startDate, endDate) || defaultValue;
   const { anchorRef, menuRef, placement } = useViewportAwareMenuPlacement(isOpen);
 
@@ -482,7 +482,7 @@ export function SearchPanel({
       <form className={`search-grid search-grid--${category}`} onSubmit={handleSubmit}>
         {!isHotelSearch && (
           <LocationField
-            defaultValue={initialCriteria?.from || "New York"}
+            defaultValue={initialCriteria?.from || "Nairobi"}
             icon={<MapPin size={18} />}
             isOpen={openDropdown === "from"}
             label="From"
@@ -494,7 +494,7 @@ export function SearchPanel({
           />
         )}
         <LocationField
-          defaultValue={initialCriteria?.to || "Los Angeles"}
+          defaultValue={initialCriteria?.to || "Dubai"}
           icon={isHotelSearch ? <MapPin size={18} /> : <Plane size={18} />}
           isOpen={openDropdown === "to"}
           label={isHotelSearch ? "Destination" : "To"}
