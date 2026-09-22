@@ -66,10 +66,10 @@ npm run seed # seed the database
 npm run dev
 ```
 
-`npm run dev` watches source files and restarts the API automatically. To rebuild the local SQLite database from scratch, run:
+`npm run dev` watches source files and restarts the API automatically. To rebuild the local SQLite database from scratch, stop the API first, then run:
 
 ```bash
-npm run seed --force
+npm run seed -- --force
 ```
 
 The API runs on:
